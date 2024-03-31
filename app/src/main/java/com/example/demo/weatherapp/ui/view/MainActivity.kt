@@ -10,8 +10,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,7 +43,8 @@ class MainActivity : ComponentActivity() {
         weatherDao = weatherDatabase.weatherDao()
         // Pass WeatherDao to WeatherRepository
         val repository = WeatherRepository(weatherDao, this)
-        viewModel = ViewModelProvider(this, MainViewModelFactory(repository)).get(MainViewModel::class.java)
+        viewModel =
+            ViewModelProvider(this, MainViewModelFactory(repository)).get(MainViewModel::class.java)
 
         setContent {
             WeatherAppTheme {
@@ -68,8 +75,26 @@ class MainViewModelFactory(private val repository: WeatherRepository) : ViewMode
 fun WeatherApp(viewModel: MainViewModel) {
     val weatherList by viewModel.weatherData.observeAsState()
     val errorMessage by viewModel.errorMessage.observeAsState()
+    val isLoading by viewModel.isLoading.observeAsState()
 
     Column(modifier = Modifier.padding(16.dp)) {
+
+        Text(
+            text = "Weather for State Capitals",
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                val cities = listOf("Noida", "New York", "London")
+                viewModel.refreshWeatherData(cities)
+            },
+            modifier = Modifier.padding(bottom = 16.dp)
+        ) {
+            Text(text = "Refresh")
+        }
+
         errorMessage?.let { message ->
             Text(
                 text = message,
@@ -78,11 +103,9 @@ fun WeatherApp(viewModel: MainViewModel) {
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        Text(
-            text = "Weather for State Capitals",
-            style = MaterialTheme.typography.headlineMedium
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        if (isLoading == true) {
+            CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+        }
 
         LazyColumn {
             weatherList?.let { list ->

@@ -16,7 +16,11 @@ class MainViewModel(private val repository: WeatherRepository) : ViewModel() {
     private val _errorMessage = MutableLiveData<String?>()
     val errorMessage: LiveData<String?> = _errorMessage
 
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
+
     fun refreshWeatherData(stateCapitals: List<String>) {
+        _isLoading.value = true
         viewModelScope.launch {
             when (val result = repository.fetchWeatherData(stateCapitals)) {
                 is ResultMe.Success -> {
@@ -27,6 +31,7 @@ class MainViewModel(private val repository: WeatherRepository) : ViewModel() {
                     _errorMessage.value = result.exception.message ?: "Something went wrong. Please try again later."
                 }
             }
+            _isLoading.value = false
         }
     }
 }

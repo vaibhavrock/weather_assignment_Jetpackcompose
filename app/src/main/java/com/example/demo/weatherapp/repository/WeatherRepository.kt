@@ -3,11 +3,15 @@ package com.example.demo.weatherapp.repository
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.util.Log
+import androidx.lifecycle.map
 import com.example.demo.weatherapp.api.RetrofitClient
 import com.example.demo.weatherapp.database.WeatherDao
 import com.example.demo.weatherapp.database.WeatherEntity
 import com.example.demo.weatherapp.model.Weather
 import com.example.demo.weatherapp.model.WeatherResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 sealed class ResultMe<out T> {
     data class Success<out T>(val data: T) : ResultMe<T>()
@@ -26,18 +30,23 @@ class WeatherRepository(private val weatherDao: WeatherDao, private val context:
                         val weatherResponse = response.body()
                         weatherResponse?.let {
                             val weather = mapWeatherResponseToWeather(it)
+                            // Check if the city already exists in the database
+                            val existingWeather = weatherDao.getWeatherByCity(city)
+                            if (existingWeather != null) {
+                                // City already exists, update its data
+                                updateWeatherData(existingWeather.id, weather)
+                            } else {
+                                // City doesn't exist, insert new data
+                                saveWeatherToRoom(weather)
+                            }
                             weatherDataList.add(weather)
-                            // Save data to Room
-                            saveWeatherToRoom(weather)
                         }
                     } else {
-                        //Log.e("API_REQUEST", "Error fetching weather data for $city: ${response.message()}")
                         return ResultMe.Error(Exception(response.message()))
                     }
                 }
                 return ResultMe.Success(weatherDataList)
             } catch (e: Exception) {
-                //Log.e("API_REQUEST", "Exception fetching weather data: ${e.message}", e)
                 return ResultMe.Error(e)
             }
         } else {
@@ -51,6 +60,12 @@ class WeatherRepository(private val weatherDao: WeatherDao, private val context:
         }
     }
 
+    private suspend fun updateWeatherData(id: Long, weather: Weather) {
+        val weatherEntity = mapWeatherToEntity(weather)
+        weatherEntity.id = id
+        weatherDao.updateWeather(weatherEntity)
+    }
+
     private fun isInternetAvailable(): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = connectivityManager.activeNetwork ?: return false
@@ -60,12 +75,15 @@ class WeatherRepository(private val weatherDao: WeatherDao, private val context:
 
     private suspend fun saveWeatherToRoom(weather: Weather) {
         val weatherEntity = mapWeatherToEntity(weather)
+        Log.d("Database", "Inserting weather data: $weatherEntity")
         weatherDao.insertWeather(weatherEntity)
     }
 
-    private fun fetchOfflineWeather(): List<Weather> {
-        val weatherEntities = weatherDao.getAllWeather().value ?: emptyList()
-        return weatherEntities.map { mapEntityToWeather(it) }
+    private suspend fun fetchOfflineWeather(): List<Weather> {
+        return withContext(Dispatchers.IO) {
+            val weatherEntities = weatherDao.getAllWeather()
+            weatherEntities.map { mapEntityToWeather(it) }
+        }
     }
 
     private fun mapEntityToWeather(weatherEntity: WeatherEntity): Weather {

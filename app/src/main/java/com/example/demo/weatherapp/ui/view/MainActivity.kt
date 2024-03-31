@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
         // Get WeatherDao from WeatherDatabase
         weatherDao = weatherDatabase.weatherDao()
         // Pass WeatherDao to WeatherRepository
-        val repository = WeatherRepository(weatherDao)
+        val repository = WeatherRepository(weatherDao, this)
         viewModel = ViewModelProvider(this, MainViewModelFactory(repository)).get(MainViewModel::class.java)
 
         setContent {

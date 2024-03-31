@@ -1,6 +1,8 @@
 package com.example.demo.weatherapp.repository
 
-import android.util.Log
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.example.demo.weatherapp.api.RetrofitClient
 import com.example.demo.weatherapp.database.WeatherDao
 import com.example.demo.weatherapp.database.WeatherEntity
@@ -12,7 +14,7 @@ sealed class ResultMe<out T> {
     data class Error(val exception: Exception) : ResultMe<Nothing>()
 }
 
-class WeatherRepository(private val weatherDao: WeatherDao) {
+class WeatherRepository(private val weatherDao: WeatherDao, private val context: Context) {
     suspend fun fetchWeatherData(stateCapitals: List<String>): ResultMe<List<Weather>> {
         // Check if there's internet connection
         if (isInternetAvailable()) {
@@ -29,12 +31,13 @@ class WeatherRepository(private val weatherDao: WeatherDao) {
                             saveWeatherToRoom(weather)
                         }
                     } else {
-                        Log.e("API_REQUEST", "Error fetching weather data for $city: ${response.message()}")
+                        //Log.e("API_REQUEST", "Error fetching weather data for $city: ${response.message()}")
+                        return ResultMe.Error(Exception(response.message()))
                     }
                 }
                 return ResultMe.Success(weatherDataList)
             } catch (e: Exception) {
-                Log.e("API_REQUEST", "Exception fetching weather data: ${e.message}", e)
+                //Log.e("API_REQUEST", "Exception fetching weather data: ${e.message}", e)
                 return ResultMe.Error(e)
             }
         } else {
@@ -43,16 +46,16 @@ class WeatherRepository(private val weatherDao: WeatherDao) {
             return if (offlineWeather.isNotEmpty()) {
                 ResultMe.Success(offlineWeather)
             } else {
-                ResultMe.Error(Exception("No internet connection and no offline data available"))
+                ResultMe.Error(Exception("No internet connection and No offline data available"))
             }
         }
     }
 
     private fun isInternetAvailable(): Boolean {
-        //val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        //val networkInfo = connectivityManager.activeNetworkInfo
-        //return networkInfo != null && networkInfo.isConnected
-        return true
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private suspend fun saveWeatherToRoom(weather: Weather) {

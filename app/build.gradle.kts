@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsKotlinAndroid)
+    id("kotlin-kapt")
 }
 
 android {
@@ -67,8 +68,8 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
     // room db
-    implementation(libs.androidx.room.runtime)
-    annotationProcessor(libs.androidx.room.compiler)
+    implementation (libs.androidx.room.ktx)
+    kapt (libs.androidx.room.compiler)
 
     // default testing
     testImplementation(libs.junit)
